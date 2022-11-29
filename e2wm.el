@@ -1590,7 +1590,7 @@ management. For window-layout.el.")
         do
         (condition-case err
             (funcall (e2wm:$plugin-update plugin) frame wm winfo)
-          (nil (e2wm:message "Plugin Error %s [%s]" plugin-name err)))))
+          (t (e2wm:message "Plugin Error %s [%s]" plugin-name err)))))
 
 (defun e2wm:plugin-exec-update-by-plugin-name (frame wm exec-plugin-name)
   ;;指定のプラグインだけを実行（プラグインから更新のために呼ばれる）
@@ -1602,7 +1602,7 @@ management. For window-layout.el.")
         do
         (condition-case err
             (funcall (e2wm:$plugin-update plugin) frame wm winfo)
-          (nil (e2wm:message "Plugin Error %s [%s]" plugin-name err)))))
+          (t (e2wm:message "Plugin Error %s [%s]" plugin-name err)))))
 
 (defun e2wm:plugin-switch (plugin-name)
   ;;現在選択されているウインドウのプラグインを取り替える
@@ -2192,7 +2192,7 @@ string object to insert the imenu buffer."
     (let (proc)
       (condition-case err
           (setq proc (start-process "WM:top" tmpbuf "top" "-b" "-n" "1"))
-        (nil
+        (t
          (with-current-buffer buf
            (erase-buffer)
            (insert (error-message-string err))

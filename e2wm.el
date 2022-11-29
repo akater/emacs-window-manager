@@ -1058,8 +1058,8 @@ defined by the perspective."
 (defvar e2wm:pst-minor-mode-setup-hook nil "This hook is called at end of setting up pst-minor-mode.")
 (defvar e2wm:pst-minor-mode-abort-hook nil "This hook is called at end of aborting pst-minor-mode.")
 
-(defvar e2wm:display-buffer-function-orig nil
-  "[internal] The value of `display-buffer-function' when E2WM is enabled.")
+(defvar e2wm:display-buffer-alist-orig nil
+  "[internal] The value of `display-buffer-alist' when E2WM is enabled.")
 (defvar e2wm:pst-minor-mode nil) ; dummy
 
 (defvar e2wm:pst-mode-line-format " E2wm(%s)" "Mode line format for e2wm.")
@@ -1075,7 +1075,7 @@ defined by the perspective."
   :group 'e2wm:pst-mode
   (if e2wm:pst-minor-mode
       (progn
-        (setq e2wm:display-buffer-function-orig display-buffer-function)
+        (setq e2wm:display-buffer-alist-orig display-buffer-alist)
         (e2wm:pst-minor-mode-setup)
         (add-hook 'delete-frame-functions 'e2wm:delete-frame-functions)
         (run-hooks 'e2wm:pst-minor-mode-setup-hook))
@@ -1113,7 +1113,7 @@ defined by the perspective."
   (remove-hook 'completion-setup-hook 'e2wm:override-setup-completion)
   (remove-hook 'after-save-hook 'e2wm:pst-after-save-hook)
   (remove-hook 'next-error-hook 'e2wm:select-window-point)
-  (setq display-buffer-function e2wm:display-buffer-function-orig)
+  (setq display-buffer-alist e2wm:display-buffer-alist-orig)
   (ad-deactivate-regexp "^e2wm:ad-override$")
   )
 
@@ -1129,7 +1129,7 @@ defined by the perspective."
   (add-hook 'completion-setup-hook 'e2wm:override-setup-completion)
   (add-hook 'after-save-hook 'e2wm:pst-after-save-hook)
   (add-hook 'next-error-hook 'e2wm:select-window-point)
-  (setq display-buffer-function 'e2wm:override-special-display-function))
+  (setq display-buffer-alist `((".*" e2wm:override-special-display-function))))
 
 (defun e2wm:pst-minor-mode-switch-frame (frame)
   (e2wm:message "## PST MM SWITCH [%s] / %s"
@@ -1353,7 +1353,7 @@ removes the buried buffer from the history list."
        (t
         (e2wm:message "#DISPLAY-BUFFER / Non managed frame ") ;;適当な場所に表示する
         (e2wm:with-advice
-         (let (special-display-function)
+         (let ((display-buffer-alist))
            (display-buffer buf))))) ;return value
       )))
 

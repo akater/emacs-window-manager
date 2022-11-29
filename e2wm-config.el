@@ -1,4 +1,4 @@
-;;; e2wm-config.el --- e2wm configuration
+;;; e2wm-config.el --- e2wm configuration  -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2010, 2011  SAKURAI Masashi
 
@@ -26,7 +26,9 @@
 
 ;;; Code:
 
-(setq woman-use-own-frame nil) ; womanで新規フレームを開かせない
+(defvar woman-use-own-frame)
+(with-eval-after-load 'woman
+  (setq woman-use-own-frame nil)) ; womanで新規フレームを開かせない
 
 ;; (setq e2wm:prefix-key "C-c ; ")
 

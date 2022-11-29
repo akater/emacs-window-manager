@@ -1,4 +1,4 @@
-;;; e2wm.el --- simple window manager for emacs
+;;; e2wm.el --- simple window manager for emacs  -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2010-2017  SAKURAI Masashi
 
@@ -151,12 +151,12 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
 (require 'cl-lib)
 
 (require 'imenu)
 (require 'easymenu)
 (require 'windmove)
+(require 'follow)
 
 (require 'window-layout)
 
@@ -726,22 +726,22 @@ slots (i.e., `:init' and `:title')."
   "[internal] Call the method which belongs to the perspective class.
 If ERROR-ON-NIL is non-nil and the CLASS has no value at the slot,
 raise the error signal with ERROR-ON-NIL."
-  (lexical-let ((method (e2wm:$pst-class-get-prop-gen method-name class))
+  (let ((method (e2wm:$pst-class-get-prop-gen method-name class))
                 (super-class (e2wm:$pst-class-extend class))
                 ;; put all arguments in lexical scope to use it in
                 ;; `e2wm:$pst-class-super':
                 (method-name method-name)
-                (class class)
+                (_class class)
                 (error-on-nil error-on-nil)
                 (args args))
     (cond
      ((null method)
       (if error-on-nil (error error-on-nil) nil))
      (t
-      (cl-flet ((e2wm:$pst-class-super () (apply
-                                        #'e2wm:method-call
-                                        method-name super-class
-                                        error-on-nil args)))
+      (cl-letf (((symbol-function 'e2wm:$pst-class-super) (lambda () (apply
+                                                               #'e2wm:method-call
+                                                               method-name super-class
+                                                               error-on-nil args))))
         (apply method args))))))
 
 (defmacro e2wm:pst-method-call (method-name pst-instance &rest args)
@@ -1326,7 +1326,7 @@ removes the buried buffer from the history list."
    (t ad-do-it)))
 
 
-(defun e2wm:override-special-display-function (buf &optional args)
+(defun e2wm:override-special-display-function (buf &optional _args)
   (e2wm:message "#SPECIAL-DISPLAY-FUNC %s / %S - %S" buf (not e2wm:ad-now-overriding) (e2wm:managed-p))
   (unless (buffer-live-p buf)    ; similar code is in `display-buffer'
     (error "Invalid buffer"))
@@ -1723,7 +1723,7 @@ management. For window-layout.el.")
 ;;; history-list / バッファ・履歴一覧
 ;;;--------------------------------------------------
 
-(defun e2wm:def-plugin-history-list (frame wm winfo)
+(defun e2wm:def-plugin-history-list (_frame wm winfo)
   (let ((wname (wlf:window-name winfo))
         (win (wlf:window-live-window winfo))
         (buf (get-buffer " *WM:History*")) current-pos)
@@ -1829,7 +1829,7 @@ management. For window-layout.el.")
                 (memq plugin-name '(history-nth main-prev)))
         return (wlf:get-buffer wm (wlf:window-name winfo))))
 
-(defun e2wm:def-plugin-history-list2 (frame wm winfo)
+(defun e2wm:def-plugin-history-list2 (_frame wm winfo)
   (let ((wname (wlf:window-name winfo))
         (win (wlf:window-live-window winfo))
         (buf (get-buffer " *WM:History2*")) current-pos)
@@ -1948,7 +1948,7 @@ management. For window-layout.el.")
 ;; 一番簡単なプラグイン
 ;; diredに丸投げ
 
-(defun e2wm:def-plugin-dired (frame wm winfo)
+(defun e2wm:def-plugin-dired (_frame wm winfo)
   (let* ((buf (e2wm:history-get-main-buffer))
          (dir (with-current-buffer buf
                 (or default-directory ".")))
@@ -1968,7 +1968,7 @@ management. For window-layout.el.")
 (defvar e2wm:def-plugin-imenu-cached-tick nil)
 (make-variable-buffer-local 'e2wm:def-plugin-imenu-cached-tick)
 
-(defun e2wm:def-plugin-imenu (frame wm winfo)
+(defun e2wm:def-plugin-imenu (_frame wm winfo)
   (let ((entries (e2wm:def-plugin-imenu-entries))
         (wname (wlf:window-name winfo))
         (buf (wlf:window-option-get winfo :buffer)) pos)
@@ -2151,7 +2151,7 @@ string object to insert the imenu buffer."
 (defvar e2wm:def-plugin-top-timer-handle nil "[internal use]")
 (defvar e2wm:def-plugin-top-timer-interval 20 "Seconds for update.")
 
-(defun e2wm:def-plugin-top (frame wm winfo)
+(defun e2wm:def-plugin-top (_frame wm winfo)
   ;;bufferが生きていればバッファを表示するだけ（タイマーに任せる）
   ;;bufferが無ければ初回更新してタイマー開始する
   (let ((buf (get-buffer e2wm:def-plugin-top-buffer-name)))
@@ -2180,7 +2180,7 @@ string object to insert the imenu buffer."
           (e2wm:message "WM: 'top' update timer stopped.")))))
 
 (defun e2wm:def-plugin-top-update ()
-  (lexical-let* ((buf (get-buffer e2wm:def-plugin-top-buffer-name))
+  (let* ((buf (get-buffer e2wm:def-plugin-top-buffer-name))
                  (tmpbuf (get-buffer-create " *WM:Top-temp*"))
                  (cleanup (lambda() (kill-buffer tmpbuf))))
     (buffer-disable-undo tmpbuf)
@@ -2198,7 +2198,7 @@ string object to insert the imenu buffer."
            (funcall cleanup))))
       (when proc
         (set-process-sentinel
-         proc (lambda(proc event)
+         proc (lambda(_proc event)
                 (with-current-buffer buf
                   (erase-buffer)
                   (if (equal event "finished\n")
@@ -2221,7 +2221,7 @@ string object to insert the imenu buffer."
 ;; 1でメインと同じ。2で1つ前（デフォルト）。
 ;; 例 (:name window-name :plugin history-nth :plugin-args 2)
 
-(defun e2wm:def-plugin-history-nth (frame wm winfo)
+(defun e2wm:def-plugin-history-nth (_frame wm winfo)
   (let* ((index (1- (or (wlf:window-option-get winfo :plugin-args) 2)))
          (buf (or (nth index (e2wm:history-get))
                   (e2wm:history-get-main-buffer))))
@@ -2237,7 +2237,7 @@ string object to insert the imenu buffer."
 
 ;; history-nthのとの違いは、undoキューがあればそっちの頭を表示する。
 
-(defun e2wm:def-plugin-main-prev (frame wm winfo)
+(defun e2wm:def-plugin-main-prev (_frame wm winfo)
   (let* ((buf (or (car (e2wm:history-get-backup))
                   (nth 1 (e2wm:history-get))
                   (e2wm:history-get-main-buffer))))
@@ -2263,7 +2263,7 @@ string object to insert the imenu buffer."
 (defvar e2wm:def-plugin-clock-resized-file  "/tmp/wmclockt.jpg" "[internal]")
 ;;↑cygwin環境の場合は "C:/cygwin/tmp/wmclock.jpg" とかにすると良いかも
 
-(defun e2wm:def-plugin-clock (frame wm winfo)
+(defun e2wm:def-plugin-clock (_frame wm winfo)
   ;;bufferが生きていればバッファを表示するだけ（タイマーに任せる）
   ;;bufferが無ければ初回更新してタイマー開始する
   (let ((buf (get-buffer e2wm:def-plugin-clock-buffer-name)))
@@ -2309,7 +2309,7 @@ string object to insert the imenu buffer."
     buf))
 
 (defun e2wm:def-plugin-clock-download ()
-  (lexical-let ((tmpbuf (get-buffer-create " *WM:Clock-temp*")))
+  (let ((tmpbuf (get-buffer-create " *WM:Clock-temp*")))
     (buffer-disable-undo tmpbuf)
     (let* ((url (format-time-string
                  e2wm:def-plugin-clock-url
@@ -2319,7 +2319,7 @@ string object to insert the imenu buffer."
                   (concat "--referer=" e2wm:def-plugin-clock-referer)
                   "-q" "-O" e2wm:def-plugin-clock-download-file url)))
       (set-process-sentinel
-       proc (lambda(proc event)
+       proc (lambda(_proc event)
               (cond
                ((string-match "exited abnormally" event)
                 (kill-buffer tmpbuf)
@@ -2333,7 +2333,7 @@ string object to insert the imenu buffer."
                     (e2wm:def-plugin-clock-show-text "No network connection."))))))))))
 
 (defun e2wm:def-plugin-clock-resize ()
-  (lexical-let*
+  (let*
       ((tmpbuf (get-buffer-create " *WM:Clock-temp*"))
        (window e2wm:def-plugin-clock-window)
        (w (* (window-width window) (frame-char-width)))
@@ -2345,7 +2345,7 @@ string object to insert the imenu buffer."
                        e2wm:def-plugin-clock-download-file
                        (concat "jpeg:" e2wm:def-plugin-clock-resized-file))))
     (set-process-sentinel
-     proc (lambda (proc event)
+     proc (lambda (_proc event)
             (cond
                ((string-match "exited abnormally" event)
                 (kill-buffer tmpbuf)
@@ -2416,7 +2416,7 @@ string object to insert the imenu buffer."
 (defvar e2wm:def-plugin-files-sort-key nil "[internal buffer local]")
 (defvar e2wm:def-plugin-files-hide-hidden-files nil "[internal buffer local]")
 
-(defun e2wm:def-plugin-files (frame wm winfo)
+(defun e2wm:def-plugin-files (_frame wm winfo)
   (let* ((buf (e2wm:history-get-main-buffer))
          (wname (wlf:window-name winfo))
          (opts (wlf:window-option-get winfo :plugin-args))
@@ -2484,7 +2484,7 @@ string object to insert the imenu buffer."
   (let*
       ((comparator
         (lambda (ref)
-          (lexical-let ((ref ref))
+          (let ((ref ref))
             (lambda (i j)
               (let ((ii (nth ref i))
                     (jj (nth ref j)))
@@ -2494,7 +2494,7 @@ string object to insert the imenu buffer."
                  (t 1)))))))
        (negative-comparator
         (lambda (ref)
-          (lexical-let ((ref ref))
+          (let ((ref ref))
             (lambda (i j)
               (let ((ii (nth ref i))
                     (jj (nth ref j)))
@@ -2504,7 +2504,7 @@ string object to insert the imenu buffer."
                  (t -1)))))))
        (to-bool
         (lambda (f)
-          (lexical-let ((f f))
+          (let ((f f))
             (lambda (i j)
               (< (funcall f i j) 0)))))
        (cmp-name (funcall comparator 0))
@@ -2513,7 +2513,7 @@ string object to insert the imenu buffer."
        (cmp-size (funcall negative-comparator 5))
        (chain
         (lambda (a b)
-          (lexical-let ((a a) (b b))
+          (let ((a a) (b b))
             (lambda (i j)
               (let ((v (funcall a i j)))
                 (if (= 0 v)
@@ -2552,7 +2552,7 @@ string object to insert the imenu buffer."
            e2wm:def-plugin-files-sort-key)) rows-file rows-time rows-size rows)
     (cl-loop for i in files
           for fn = (substring (car i) 0)
-          for tm = (nth 2 i) for sz = (nth 3 i)
+          for _tm = (nth 2 i) for _sz = (nth 3 i)
           for type = (cadr i)
           do
           (push i rows)
@@ -2760,7 +2760,7 @@ string object to insert the imenu buffer."
 ;;  :buffer  : 表示すべきバッファ。存在してなければコマンドを実行する。lambdaでも可。
 ;;  :command : 実行すべき関数のシンボル。関数の返値はバッファオブジェクト。
 
-(defun e2wm:def-plugin-open (frame wm winfo)
+(defun e2wm:def-plugin-open (_frame wm winfo)
   (let* ((plugin-args (wlf:window-option-get winfo :plugin-args))
          (buffer-name (plist-get plugin-args ':buffer))
          (command (plist-get plugin-args ':command)) buf)
@@ -2919,7 +2919,7 @@ string object to insert the imenu buffer."
       t))))
 
 (defun e2wm:dp-code-popup-sub (buf)
-  (let ((wm (e2wm:pst-get-wm))
+  (let ((_wm (e2wm:pst-get-wm))
         (not-minibufp (= 0 (minibuffer-depth))))
     (e2wm:with-advice
      (e2wm:pst-buffer-set 'sub buf t not-minibufp))))
@@ -3080,7 +3080,7 @@ Otherwise show and select it."
     t)))
 
 (defun e2wm:dp-two-popup-sub (buf)
-  (let ((wm (e2wm:pst-get-wm))
+  (let ((_wm (e2wm:pst-get-wm))
         (not-minibufp (= 0 (minibuffer-depth))))
     (e2wm:with-advice
      (e2wm:pst-buffer-set 'sub buf t not-minibufp))))
@@ -3322,7 +3322,7 @@ Do not select the buffer."
         (wlf:set-buffer wm 'right leftbuf))))
 
 (defun e2wm:dp-doc-set-main-buffer (buf)
-  (let ((wm (e2wm:pst-get-wm)))
+  (let ((_wm (e2wm:pst-get-wm)))
     (with-current-buffer buf
       (follow-mode 1))
     (e2wm:pst-buffer-set 'left buf)
@@ -3342,7 +3342,7 @@ Do not select the buffer."
 
 (defun e2wm:dp-doc-popup (buf)
   (e2wm:message "#DP DOC popup : %s" buf)
-  (let ((buf-name (buffer-name buf)))
+  (let ((_buf-name (buffer-name buf)))
     (cond
      ((or (e2wm:document-buffer-p buf)
           (e2wm:history-recordable-p buf))
@@ -3353,7 +3353,7 @@ Do not select the buffer."
       t))))
 
 (defun e2wm:dp-doc-popup-sub (buf)
-  (let ((wm (e2wm:pst-get-wm))
+  (let ((_wm (e2wm:pst-get-wm))
         (not-minibufp (= 0 (minibuffer-depth))))
     (e2wm:with-advice
      (e2wm:pst-buffer-set 'sub buf t not-minibufp))))
@@ -3446,10 +3446,10 @@ Do not select the buffer."
         (cl-incf cnt))
   wm)
 
-(defun e2wm:dp-dashboard-start (wm)
+(defun e2wm:dp-dashboard-start (_wm)
   (e2wm:dp-dashboard-update-summary))
 
-(defun e2wm:dp-dashboard-leave (wm)
+(defun e2wm:dp-dashboard-leave (_wm)
   (unless (e2wm:history-recordable-p e2wm:prev-selected-buffer)
     (setq e2wm:prev-selected-buffer nil)
     (setq prev-selected-buffer nil)))   ; 次のパースペクティブは履歴から持ってきてもらう
@@ -3502,7 +3502,7 @@ Do not select the buffer."
   ;; of 2014-02-22 on chindi10, modified by Debian
   (cl-multiple-value-bind
       (conses syms miscs strings string-bytes
-              vectors vector-slots floats intervals)
+              _vectors vector-slots floats intervals)
       gc-info
     (let* ((used-conses       (nth 2 conses))
            (free-conses       (nth 3 conses))
@@ -3549,7 +3549,7 @@ Do not select the buffer."
       (e2wm:dp-dashboard-parse-garbage-collect)
     (let* ((buf-num (length (buffer-list)))
            (pure-mem (e2wm:format-byte-unit pure-bytes-used))
-           (gccons (e2wm:format-byte-unit gc-cons-threshold))
+           (_gccons (e2wm:format-byte-unit gc-cons-threshold))
            (mem-limit (e2wm:format-byte-unit (* 1024 (memory-limit)))))
       (cl-flet
           ((percent (used free)
@@ -3661,7 +3661,18 @@ Do not select the buffer."
                         finally return ret))
        (mk (x y) (list ':name (intern (format "w-%i-%i" x y)))))
     (let ((ar (loop-rows cols rows)))
-      (add-to-list 'ar '(:name summary) t))))
+      (cl-block add-to-ar
+        (let ((tail ar))
+          (while tail
+            (cond
+             ((equal '(:name summary) (car tail))
+              (cl-return-from add-to-ar))
+             ((null (cdr tail))
+              (setf (cdr tail) (list '(:name summary)))
+              (cl-return-from add-to-ar))
+             (t
+              (pop tail))))))
+      ar)))
 
 (defun e2wm:dp-array-calculate-size (num)
   ;;num個のサイズが入る縦横幅を計算する
@@ -3673,7 +3684,7 @@ Do not select the buffer."
                         if ret
                         return ret
                         finally return (cons cols rows)))
-       (loop-cols (cols y mx)
+       (loop-cols (_cols y mx)
                   (cl-loop for i from y to (min (1+ y) mx)
                         if (<= num (* i y))
                         return (cons i y)
@@ -3716,7 +3727,7 @@ Do not select the buffer."
 
 (defvar e2wm:dp-array-backup-globalmap nil)
 
-(defun e2wm:dp-array-start (wm)
+(defun e2wm:dp-array-start (_wm)
   (e2wm:message "#ARRAY START")
   (setq e2wm:dp-array-backup-globalmap global-map)
   (use-global-map e2wm:dp-array-minor-mode-map) ; 強引
@@ -3724,7 +3735,7 @@ Do not select the buffer."
   (e2wm:dp-array-decrease-fontsize)
   (e2wm:dp-array-update-summary))
 
-(defun e2wm:dp-array-leave (wm)
+(defun e2wm:dp-array-leave (_wm)
   (e2wm:message "#ARRAY LEAVE")
   (use-global-map e2wm:dp-array-backup-globalmap)
   (setq overriding-terminal-local-map nil)
@@ -3810,7 +3821,7 @@ Do not select the buffer."
   (let* ((bufname " *WM:ArraySummary*")
          (buf (get-buffer bufname))
          (wm (e2wm:pst-get-wm))
-         (win (wlf:get-window wm 'summary))
+         (_win (wlf:get-window wm 'summary))
          (selected-buf (window-buffer (selected-window))))
     (unless (and buf (buffer-live-p buf))
       (setq buf (get-buffer-create bufname))

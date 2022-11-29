@@ -1,4 +1,4 @@
-;;; e2wm-vcs.el --- VCS perspectives
+;;; e2wm-vcs.el --- VCS perspectives  -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2011  SAKURAI Masashi
 
@@ -57,7 +57,8 @@
         buf))))
 
 
-(defun e2wm:def-plugin-vcs-with-window (topdir-func body-func na-buffer-func)
+(defun e2wm:def-plugin-vcs-with-window ( topdir-func body-func na-buffer-func
+                                         wm winfo)
   (let* ((buf (or e2wm:prev-selected-buffer
                   (wlf:get-buffer (e2wm:pst-get-wm)
                                   (e2wm:$pst-main (e2wm:pst-get-instance)))
@@ -84,7 +85,7 @@
 (defun e2wm:vcs-select-if-plugin (buf)
   (e2wm:message "#vcs-select-if-plugin")
   (if e2wm:c-vcs-select-if-plugin
-      (loop with wm = (e2wm:pst-get-wm)
+      (cl-loop with wm = (e2wm:pst-get-wm)
             for wname in (mapcar 'wlf:window-name (wlf:wset-winfo-list wm))
             if (and (equal buf (wlf:get-buffer wm wname))
                     (e2wm:pst-window-plugin-get wm wname))
@@ -96,35 +97,38 @@
 ;;; magit / plugins
 ;;;--------------------------------------------------
 
-(defun e2wm:def-plugin-magit-branches (frame wm winfo)
+(defun e2wm:def-plugin-magit-branches (_frame wm winfo)
   (e2wm:def-plugin-vcs-with-window
    'magit-toplevel
    (if (fboundp 'magit-branch-manager)
-       (lambda (dir topdir) (magit-branch-manager))
-     (lambda (dir topdir) (magit-show-refs-current)))
-   (lambda () (e2wm:def-plugin-vcs-na-buffer "Git N/A"))))
+       (lambda (_dir _topdir) (magit-branch-manager))
+     (lambda (_dir _topdir) (magit-show-refs-current)))
+   (lambda () (e2wm:def-plugin-vcs-na-buffer "Git N/A"))
+   wm winfo))
 
 (e2wm:plugin-register 'magit-branches
                       "Magit Branches"
                       'e2wm:def-plugin-magit-branches)
 
-(defun e2wm:def-plugin-magit-logs (frame wm winfo)
+(defun e2wm:def-plugin-magit-logs (_frame wm winfo)
   (e2wm:def-plugin-vcs-with-window
    'magit-toplevel
-   (lambda (dir topdir)
+   (lambda (_dir _topdir)
      (magit-log (magit-log-read-revs t) '("--graph" "--color" "--decorate" "-n100")))
-   (lambda () (e2wm:def-plugin-vcs-na-buffer "Git N/A"))))
+   (lambda () (e2wm:def-plugin-vcs-na-buffer "Git N/A"))
+   wm winfo))
 
 (e2wm:plugin-register 'magit-logs
                       "Magit Logs"
                       'e2wm:def-plugin-magit-logs)
 
-(defun e2wm:def-plugin-magit-status (frame wm winfo)
+(defun e2wm:def-plugin-magit-status (_frame wm winfo)
   (e2wm:def-plugin-vcs-with-window
    'magit-toplevel
-   (lambda (dir topdir)
+   (lambda (_dir topdir)
      (magit-status topdir))
-   (lambda () (e2wm:history-get-main-buffer))))
+   (lambda () (e2wm:history-get-main-buffer))
+   wm winfo))
 
 (e2wm:plugin-register 'magit-status
                       "Magit Status"
@@ -171,11 +175,11 @@
   (e2wm:pst-update-windows))
 (ad-deactivate-regexp "^e2wm:ad-override-magit$")
 
-(defun e2wm:dp-magit-leave (wm)
+(defun e2wm:dp-magit-leave (_wm)
   (ad-deactivate-regexp "^e2wm:ad-override-magit$")
   (setq e2wm:prev-selected-buffer nil))
 
-(defun e2wm:dp-magit-start (wm)
+(defun e2wm:dp-magit-start (_wm)
   (ad-activate-regexp "^e2wm:ad-override-magit$"))
 
 (defun e2wm:dp-magit-init ()
@@ -197,7 +201,7 @@
                   buf cb e2wm:override-window-cfg-backup))
   (unless (e2wm:vcs-select-if-plugin buf)
     (let ((buf-name (buffer-name buf))
-          (wm (e2wm:pst-get-wm))
+          (_wm (e2wm:pst-get-wm))
           (not-minibufp (= 0 (minibuffer-depth))))
       (e2wm:with-advice
        (cond
@@ -230,35 +234,38 @@
 ;;; monky / plugins
 ;;;--------------------------------------------------
 
-(defun e2wm:monky-get-root-dir (dir)
+(defun e2wm:monky-get-root-dir (_dir)
   (monky-get-root-dir))
 
-(defun e2wm:def-plugin-monky-branches (frame wm winfo)
+(defun e2wm:def-plugin-monky-branches (_frame wm winfo)
   (e2wm:def-plugin-vcs-with-window
    'e2wm:monky-get-root-dir
-   (lambda (dir topdir)
+   (lambda (_dir _topdir)
      (monky-branches))
-   (lambda () (e2wm:def-plugin-vcs-na-buffer "Hg N/A"))))
+   (lambda () (e2wm:def-plugin-vcs-na-buffer "Hg N/A"))
+   wm winfo))
 
 (e2wm:plugin-register 'monky-branches
                       "Monky Branches"
                       'e2wm:def-plugin-monky-branches)
 
-(defun e2wm:def-plugin-monky-logs (frame wm winfo)
+(defun e2wm:def-plugin-monky-logs (_frame wm winfo)
   (e2wm:def-plugin-vcs-with-window
    'e2wm:monky-get-root-dir
-   (lambda (dir topdir) (monky-log))
-   (lambda () (e2wm:def-plugin-vcs-na-buffer "Hg N/A"))))
+   (lambda (_dir _topdir) (monky-log))
+   (lambda () (e2wm:def-plugin-vcs-na-buffer "Hg N/A"))
+   wm winfo))
 
 (e2wm:plugin-register 'monky-logs
                       "Monky Logs"
                       'e2wm:def-plugin-monky-logs)
 
-(defun e2wm:def-plugin-monky-status (frame wm winfo)
+(defun e2wm:def-plugin-monky-status (_frame wm winfo)
   (e2wm:def-plugin-vcs-with-window
    'e2wm:monky-get-root-dir
-   (lambda (dir topdir) (monky-status))
-   (lambda () (e2wm:history-get-main-buffer))))
+   (lambda (_dir _topdir) (monky-status))
+   (lambda () (e2wm:history-get-main-buffer))
+   wm winfo))
 
 (e2wm:plugin-register 'monky-status
                       "Monky Status"
@@ -306,11 +313,11 @@
   (e2wm:pst-update-windows))
 (ad-deactivate-regexp "^e2wm:ad-override-monky$")
 
-(defun e2wm:dp-vcs-monky (wm)
+(defun e2wm:dp-vcs-monky (_wm)
   (ad-deactivate-regexp "^e2wm:ad-override-monky$")
   (setq e2wm:prev-selected-buffer nil))
 
-(defun e2wm:dp-monky-start (wm)
+(defun e2wm:dp-monky-start (_wm)
   (ad-activate-regexp "^e2wm:ad-override-monky$"))
 
 (defun e2wm:dp-monky-init ()
@@ -321,7 +328,7 @@
     (wlf:set-buffer monky-wm 'main buf)
     monky-wm))
 
-(defun e2wm:dp-monky-update (wm)
+(defun e2wm:dp-monky-update (_wm)
   (monky-with-refresh
     (e2wm:$pst-class-super)))
 
@@ -335,7 +342,7 @@
                   buf cb e2wm:override-window-cfg-backup))
   (unless (e2wm:vcs-select-if-plugin buf)
     (let ((buf-name (buffer-name buf))
-          (wm (e2wm:pst-get-wm))
+          (_wm (e2wm:pst-get-wm))
           (not-minibufp (= 0 (minibuffer-depth))))
       (e2wm:with-advice
        (cond
@@ -387,7 +394,7 @@
 
 (defvar e2wm:def-plugin-svn-logs-buffer-name " *WM:dsvn-logs*" "[internal]")
 
-(defun e2wm:def-plugin-svn-logs (frame wm winfo)
+(defun e2wm:def-plugin-svn-logs (_frame wm winfo)
     (e2wm:def-plugin-vcs-with-window
      'e2wm:def-plugin-svn-top-dir
      (lambda (dir topdir)
@@ -405,18 +412,20 @@
            (goto-char (point-min))
            (svn-log-mode))
          (set-window-buffer (selected-window) dbuf)))
-     (lambda () (e2wm:def-plugin-vcs-na-buffer "Subversion N/A"))))
+     (lambda () (e2wm:def-plugin-vcs-na-buffer "Subversion N/A"))
+     wm winfo))
 
 (e2wm:plugin-register 'svn-logs
                       "Svn Logs"
                       'e2wm:def-plugin-svn-logs)
 
-(defun e2wm:def-plugin-svn-status (frame wm winfo)
+(defun e2wm:def-plugin-svn-status (_frame wm winfo)
   (e2wm:def-plugin-vcs-with-window
    'e2wm:def-plugin-svn-top-dir
-   (lambda (dir topdir)
+   (lambda (_dir topdir)
      (svn-status (file-name-as-directory topdir)))
-   (lambda () (e2wm:history-get-main-buffer))))
+   (lambda () (e2wm:history-get-main-buffer))
+   wm winfo))
 
 (e2wm:plugin-register 'svn-status
                       "Svn Status"
@@ -456,7 +465,7 @@
    :leave  'e2wm:dp-svn-leave
    :keymap 'e2wm:dp-svn-minor-mode-map))
 
-(defun e2wm:dp-svn-leave (wm)
+(defun e2wm:dp-svn-leave (_wm)
   (setq e2wm:prev-selected-buffer nil))
 
 (defun e2wm:dp-svn-init ()
@@ -475,7 +484,7 @@
   (let ((cb (current-buffer)))
     (e2wm:message "#DP SVN popup : %s (current %s / backup %s)"
                   buf cb e2wm:override-window-cfg-backup))
-  (let* ((wm (e2wm:pst-get-wm))
+  (let* ((_wm (e2wm:pst-get-wm))
          (bufname (buffer-name buf))
          (focus-set (and (= 0 (minibuffer-depth))
                          (string-match e2wm:c-svn-focus-buffer-regexp bufname))))

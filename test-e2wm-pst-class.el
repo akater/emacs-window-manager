@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 ;; How to run:
 ;;   emacs -batch \
 ;;       -L PATH/TO/E2WM/ \

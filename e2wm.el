@@ -1755,7 +1755,8 @@ management. For window-layout.el.")
                         'e2wm:face-history-list-normal))
                      'e2wm:buffer h))
                 (cl-incf cnt))
-          (goto-line (1+ (length history-backup)))
+          (forward-line (- (1+ (length history-backup))
+                           (line-number-at-pos)))
           (setq current-pos (point))
           (setq mode-line-format
                 '("-" mode-line-mule-info

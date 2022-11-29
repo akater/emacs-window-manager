@@ -379,7 +379,7 @@ string. ARGS is a list of cons cell, ([string] . [face name])."
 (defun e2wm:num (number)
   "[utility] Format a number."
   (let ((base (format "%s" number)))
-    (cl-flet
+    (cl-labels
         ((rec (str len)
               (let ((pos (- len 3)))
                 (if (< pos 1) str

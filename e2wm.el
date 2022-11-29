@@ -151,7 +151,8 @@
 
 ;;; Code:
 
-(require 'cl)
+(eval-when-compile (require 'cl))
+(require 'cl-lib)
 
 (require 'imenu)
 (require 'easymenu)
@@ -214,14 +215,14 @@
 (defun e2wm:find (name name-func seq)
   "Return the element that the return value of the NAME-FUNC
 equals to NAME in the given sequence SEQ."
-  (loop for i in seq
+  (cl-loop for i in seq
         if (eq name (funcall name-func i))
         return i))
 
 (defmacro e2wm:delete! (name name-func seq)
   "Destructively delete the element."
   `(setq ,seq
-         (delete-if
+         (cl-delete-if
           (lambda (i) (eq ,name (funcall ',name-func i)))
              ,seq)))
 
@@ -242,7 +243,7 @@ equals to NAME in the given sequence SEQ."
             (goto-char (point-max))
             (insert (format "%5i %s\n" e2wm:debug-count text))
             (setq e2wm:debug-last-text text)))))
-    (incf e2wm:debug-count)))
+    (cl-incf e2wm:debug-count)))
 
 (defun e2wm:message-mark () ; debug
   "Output a mark text into the debug buffer: *e2wm:debug*."
@@ -309,9 +310,9 @@ from the given string."
                   (substring ret (match-end 0))
                 ret))
     (or
-     (loop for i downfrom (1- (length ret)) downto 0 do
+     (cl-loop for i downfrom (1- (length ret)) downto 0 do
            (if (/= 32 (char-syntax (aref ret i)))
-               (return (substring ret 0 (1+ i)))))
+               (cl-return (substring ret 0 (1+ i)))))
      "")))
 
 (defun e2wm:strtime (time)
@@ -353,7 +354,7 @@ from the given string."
   "[utility] Format strings with faces. TEXT is format
 string. ARGS is a list of cons cell, ([string] . [face name])."
   (apply 'format (e2wm:rt text 'e2wm:face-item)
-         (loop for i in args
+         (cl-loop for i in args
                if (consp i)
                collect (e2wm:rt (car i) (cdr i))
                else
@@ -378,7 +379,7 @@ string. ARGS is a list of cons cell, ([string] . [face name])."
 (defun e2wm:num (number)
   "[utility] Format a number."
   (let ((base (format "%s" number)))
-    (flet
+    (cl-flet
         ((rec (str len)
               (let ((pos (- len 3)))
                 (if (< pos 1) str
@@ -389,7 +390,7 @@ string. ARGS is a list of cons cell, ([string] . [face name])."
 (defun e2wm:max-length (rows)
   "[utility] Return the max length of string in the given
 sequence. ROWS is a list of string."
-  (loop for i in rows
+  (cl-loop for i in rows
         with lmax = 0
         for ln = (if i (length i) 0)
         do (setq lmax (max lmax ln))
@@ -460,7 +461,7 @@ sequence. ROWS is a list of string."
 
 (defun e2wm:history-filter-killed-buffers (history)
   "[internal] filter killed buffers"
-  (loop for buf in history
+  (cl-loop for buf in history
         when (buffer-live-p buf)
         collect buf))
 
@@ -489,7 +490,7 @@ This function does following jobs:
              (mapcar
                'car
                (sort
-                (loop for h in (append
+                (cl-loop for h in (append
                                 (cdr prev-history)
                                 (e2wm:history-get-backup))
                      for b = (get-buffer h)
@@ -545,11 +546,11 @@ This function does following jobs:
 If no buffer is found, return BUFFER."
   (let* ((history (append (reverse (e2wm:history-get-backup))
                           (e2wm:history-get))))
-    (or (loop for i in history
+    (or (cl-loop for i in history
               with prev = nil
               do
               (when
-               (eql buffer i) (return prev))
+               (eql buffer i) (cl-return prev))
               (setq prev i))
         buffer)))
 
@@ -558,11 +559,11 @@ If no buffer is found, return BUFFER."
 If no buffer is found, return BUFFER."
   (let* ((history (append (reverse (e2wm:history-get-backup))
                           (e2wm:history-get))))
-    (or (loop for i in history
+    (or (cl-loop for i in history
               with found = nil
               do
               (cond
-               (found (return i))
+               (found (cl-return i))
                ((eql buffer i) (setq found t))))
         buffer)))
 
@@ -573,7 +574,7 @@ If no buffer is found, return BUFFER."
                           (e2wm:history-get)))
          (prevs nil)
          (nexts nil))
-    (loop for i in history
+    (cl-loop for i in history
           for c from 0
           with found = nil
           if (and found (< n c))
@@ -585,7 +586,7 @@ If no buffer is found, return BUFFER."
                    (push i nexts)
                  (push i prevs))))
     (if (or prevs nexts)
-        (loop for i in (subseq (append prevs (reverse nexts)) 0 n)
+        (cl-loop for i in (cl-subseq (append prevs (reverse nexts)) 0 n)
               with last-non-nil = nil
               if i collect i and do (setq last-non-nil i)
               else collect last-non-nil)
@@ -662,7 +663,7 @@ Note that `prev-selected-buffer' is obsolete now.")
 ;; keymap  : A symbol for the key map of this perspective.
 ;; save    : This function is called by the hook `after-save-hook' when this perspective is active.
 
-(defstruct e2wm:$pst-class
+(cl-defstruct e2wm:$pst-class
   name title extend
   init main start update switch popup display after-bury leave
   keymap save)
@@ -682,7 +683,7 @@ overrides the previous one."
 (defun e2wm:pst-class-remove (pst-class)
   "Remove the class from the perspective class registry."
   (setq e2wm:pst-list
-        (loop with name = (e2wm:$pst-class-name pst-class)
+        (cl-loop with name = (e2wm:$pst-class-name pst-class)
               for i in e2wm:pst-list
               unless (equal name (e2wm:$pst-class-name i))
               collect i)))
@@ -708,7 +709,7 @@ slots (i.e., `:init' and `:title')."
 ;; focus   : name of focused window (if any)
 ;; type    : A reference to the perspective class object
 
-(defstruct e2wm:$pst name wm focus type)
+(cl-defstruct e2wm:$pst name wm focus type)
 
 (defun e2wm:$pst-get-prop (name pst)
   "[internal] Return the value of this perspective."
@@ -737,7 +738,7 @@ raise the error signal with ERROR-ON-NIL."
      ((null method)
       (if error-on-nil (error error-on-nil) nil))
      (t
-      (flet ((e2wm:$pst-class-super () (apply
+      (cl-flet ((e2wm:$pst-class-super () (apply
                                         #'e2wm:method-call
                                         method-name super-class
                                         error-on-nil args)))
@@ -1182,14 +1183,14 @@ defined by the perspective."
   ;;abstract classとarray以外を全部つっこむ
   (e2wm:pstset-define
    (nreverse
-    (loop for i in e2wm:pst-list
+    (cl-loop for i in e2wm:pst-list
           unless (or (memq (e2wm:$pst-class-name i) '(array))
                      (e2wm:pst-class-abstract-p i))
           collect (e2wm:$pst-class-name i)))))
 
 (defun e2wm:pstset-define (names)
   ;;引数：パースペクティブのシンボルのリスト
-  (loop for i in names
+  (cl-loop for i in names
         unless (e2wm:pst-class-get i)
         do (error "Perspective [%s] not found." i))
   (e2wm:frame-param-set 'e2wm:pstset names))
@@ -1203,7 +1204,7 @@ defined by the perspective."
   (e2wm:aif (e2wm:pst-get-instance)
       (let* ((pset (e2wm:pstset-get-current-pstset))
              (now (e2wm:$pst-name it))
-             (pos (position now pset)))
+             (pos (cl-position now pset)))
         (e2wm:aand pos (nth (1+ it) pset)
                   (e2wm:pst-change it)))))
 
@@ -1213,7 +1214,7 @@ defined by the perspective."
   (e2wm:aif (e2wm:pst-get-instance)
       (let* ((pset (e2wm:pstset-get-current-pstset))
              (now (e2wm:$pst-name it))
-             (pos (position now pset)))
+             (pos (cl-position now pset)))
         (e2wm:aand pos (nth (1- it) pset)
                   (e2wm:pst-change it)))))
 
@@ -1367,7 +1368,7 @@ Called via `kill-buffer-hook'."
       ;; search through the existing windows which show the killed buffer
       (let* ((killedbuf (current-buffer))
              (wm (e2wm:pst-get-wm))
-             (wins (loop for winfo in (wlf:wset-winfo-list wm)
+             (wins (cl-loop for winfo in (wlf:wset-winfo-list wm)
                          for wname = (wlf:window-name winfo)
                          when (equal (wlf:get-buffer wm wname) killedbuf)
                          collect wname))
@@ -1375,7 +1376,7 @@ Called via `kill-buffer-hook'."
              (main-wname (e2wm:$pst-main (e2wm:pst-get-instance))))
         (cond
          (buffers
-          (loop for wname in wins
+          (cl-loop for wname in wins
                 for buf in buffers
                 do
                 (when (equal wname main-wname)
@@ -1435,14 +1436,14 @@ management. For window-layout.el.")
 
 (defun e2wm:debug-windows (wm)
   (e2wm:message " # WINDOWS : %s"
-               (loop for winfo in (wlf:wset-winfo-list wm)
+               (cl-loop for winfo in (wlf:wset-winfo-list wm)
                      collect (wlf:window-window winfo))))
 
 ;;e2wm:$wcfg ウインドウ配置構造体
 ;; wcfg  : 本来のcurrent-window-configurationでとれるウインドウ配置オブジェクト
 ;; pst   : パースペクティブのインスタンスのコピー
 ;; count : デバッグ用カウンタ
-(defstruct e2wm:$wcfg wcfg pst count)
+(cl-defstruct e2wm:$wcfg wcfg pst count)
 
 (defun e2wm:override-custom-wcfg-p (cfg)
   (e2wm:$wcfg-p cfg))
@@ -1490,7 +1491,7 @@ management. For window-layout.el.")
 
 (defadvice current-window-configuration (around e2wm:ad-override)
   (let ((cfg ad-do-it))
-    (incf e2wm:override-window-cfg-count)
+    (cl-incf e2wm:override-window-cfg-count)
     ;;(e2wm:message "#CURRENT-WINDOW-CONFIGURATION %s" e2wm:override-window-cfg-count)
     (if (e2wm:managed-p)
         (let ((data (e2wm:pst-copy-instance)))
@@ -1556,7 +1557,7 @@ management. For window-layout.el.")
 ;; name   : プラグインの symbol
 ;; title  : 人が読む用のプラグインの名前
 ;; update : プラグイン本体の関数
-(defstruct e2wm:$plugin name title update)
+(cl-defstruct e2wm:$plugin name title update)
 
 (defvar e2wm:plugin-list nil "[internal] Plugin registory.")
 (setq e2wm:plugin-list nil)
@@ -1582,7 +1583,7 @@ management. For window-layout.el.")
 
 (defun e2wm:plugin-exec-update (frame wm)
   ;;各windowのプラグインを実行
-  (loop for winfo in (wlf:wset-winfo-list wm)
+  (cl-loop for winfo in (wlf:wset-winfo-list wm)
         for plugin-name = (wlf:window-option-get winfo :plugin)
         for plugin = (e2wm:plugin-get plugin-name)
         if (and (wlf:window-live-window winfo) plugin)
@@ -1593,7 +1594,7 @@ management. For window-layout.el.")
 
 (defun e2wm:plugin-exec-update-by-plugin-name (frame wm exec-plugin-name)
   ;;指定のプラグインだけを実行（プラグインから更新のために呼ばれる）
-  (loop for winfo in (wlf:wset-winfo-list wm)
+  (cl-loop for winfo in (wlf:wset-winfo-list wm)
         for plugin-name = (wlf:window-option-get winfo :plugin)
         for plugin = (e2wm:plugin-get plugin-name)
         if (and (wlf:window-live-window winfo) plugin
@@ -1667,7 +1668,7 @@ management. For window-layout.el.")
 (defun e2wm:menu-define ()
   (let (perspectives plugins)
     (setq perspectives
-          (loop for i in e2wm:pst-list
+          (cl-loop for i in e2wm:pst-list
                 for n = (e2wm:$pst-class-name i)
                 collect
                 (vector (e2wm:$pst-class-title i)
@@ -1675,7 +1676,7 @@ management. For window-layout.el.")
                         :selected `(e2wm:menu-pst-selected-p ',n)
                         :style 'toggle)))
     (setq plugins
-          (loop for i in e2wm:plugin-list
+          (cl-loop for i in e2wm:plugin-list
                 for n = (e2wm:$plugin-name i)
                 collect
                 (vector (e2wm:$plugin-title i)
@@ -1741,7 +1742,7 @@ management. For window-layout.el.")
         (let ((history (e2wm:history-get))
               (history-backup (reverse (e2wm:history-get-backup)))
               (cnt 1))
-          (loop for h in (append history-backup history)
+          (cl-loop for h in (append history-backup history)
                 with main-buf = (e2wm:history-get-main-buffer)
                 for name = (if (stringp h) h (buffer-name h))
                 do (insert
@@ -1753,7 +1754,7 @@ management. For window-layout.el.")
                       (if (eql h main-buf) 'e2wm:face-history-list-select1
                         'e2wm:face-history-list-normal))
                      'e2wm:buffer h))
-                (incf cnt))
+                (cl-incf cnt))
           (goto-line (1+ (length history-backup)))
           (setq current-pos (point))
           (setq mode-line-format
@@ -1822,7 +1823,7 @@ management. For window-layout.el.")
 
 (defun e2wm:def-plugin-history-list2-get-plugin-buffer (wm)
   ;; pluginがprev-mainかhistory-nthのwindowのバッファを取ってくる
-  (loop for winfo in (wlf:wset-winfo-list wm)
+  (cl-loop for winfo in (wlf:wset-winfo-list wm)
         for plugin-name = (wlf:window-option-get winfo :plugin)
         if (and (wlf:window-live-window winfo) plugin-name
                 (memq plugin-name '(history-nth main-prev)))
@@ -1850,7 +1851,7 @@ management. For window-layout.el.")
                (main-buf   (wlf:get-buffer wm 'left))
                (second-buf (wlf:get-buffer wm 'right))
                (cnt 1))
-          (loop for h in (append history-backup history)
+          (cl-loop for h in (append history-backup history)
                 for name = (if (stringp h) h (buffer-name h))
                 do (insert
                     (e2wm:tp
@@ -1867,7 +1868,7 @@ management. For window-layout.el.")
                        (t
                         'e2wm:face-history-list-normal)))
                      'e2wm:buffer h))
-                (incf cnt))
+                (cl-incf cnt))
           (goto-char current-pos)
           (setq mode-line-format
                 '("-" mode-line-mule-info
@@ -1984,7 +1985,7 @@ management. For window-layout.el.")
       (let (buffer-read-only)
         (setq pos (point))
         (erase-buffer)
-        (loop for i in entries
+        (cl-loop for i in entries
               do (insert i "\n"))
         (setq mode-line-format
               '("-" mode-line-mule-info
@@ -2017,7 +2018,7 @@ management. For window-layout.el.")
 (defun e2wm:def-plugin-imenu-create-entries (entries indent result)
   "[internal] Make a menu item from the imenu object and return a
 string object to insert the imenu buffer."
-  (loop for i in entries do
+  (cl-loop for i in entries do
         (cond
          ;; item
          ((number-or-marker-p (cdr i))
@@ -2084,7 +2085,7 @@ string object to insert the imenu buffer."
 (define-derived-mode e2wm:def-plugin-imenu-mode fundamental-mode "Imenu")
 
 (defun e2wm:def-plugin-imenu-which-func ()
-  (loop with which-func = nil
+  (cl-loop with which-func = nil
         with minoffset = (point-max)
         for i in e2wm:def-plugin-imenu-cached-entries
         for mark = (get-text-property 0 'e2wm:imenu-mark i)
@@ -2389,7 +2390,7 @@ string object to insert the imenu buffer."
        (e2wm:rt-format
         "\nSystem: %s\nLoad Average: %s\n\n"
         (system-name)
-        (mapconcat 'identity (loop for i in (load-average t)
+        (mapconcat 'identity (cl-loop for i in (load-average t)
                                    collect (format "%.2f" i)) ", ")))
       (insert
        (e2wm:rt-format
@@ -2533,7 +2534,7 @@ string object to insert the imenu buffer."
 (defun e2wm:def-plugin-files-update-buffer (dir)
   (let* ((files
           (e2wm:def-plugin-files-sort
-           (loop
+           (cl-loop
             for f in (directory-files-and-attributes dir)
             for fn = (car f)
             unless (or (member fn '(".." "."))
@@ -2549,7 +2550,7 @@ string object to insert the imenu buffer."
                      (if (nth 8 f) (format "%014d" (nth 8 f)) (make-string 14 ?\ ))
                      (float-time (nth 7 f))))
            e2wm:def-plugin-files-sort-key)) rows-file rows-time rows-size rows)
-    (loop for i in files
+    (cl-loop for i in files
           for fn = (substring (car i) 0)
           for tm = (nth 2 i) for sz = (nth 3 i)
           for type = (cadr i)
@@ -2586,7 +2587,7 @@ string object to insert the imenu buffer."
                     (truncate-string-to-width dirname namelen startcol))))))
 
 (defun e2wm:def-plugin-files-insert-by-name (rows-file rows-time rows-size)
-  (loop for i from 0 below (length rows-file)
+  (cl-loop for i from 0 below (length rows-file)
         with wfile = (e2wm:max-length rows-file)
         with wtime = (e2wm:max-length rows-time)
         with fmt = (format "%%-%is  %%%is  %%s\n" wfile wtime)
@@ -2606,7 +2607,7 @@ string object to insert the imenu buffer."
          (fyesterday  (- ftoday 86400))
          (flast-week  (- ftoday (* 86400 7)))
          (flast-month (- ftoday (* 86400 30))))
-    (loop for i from 0 below (length rows-file)
+    (cl-loop for i from 0 below (length rows-file)
           with wfile = (e2wm:max-length rows-file)
           with wtime = (e2wm:max-length rows-time)
           with today-first = nil
@@ -2640,7 +2641,7 @@ string object to insert the imenu buffer."
           (setq last-ftime ftm))))
 
 (defun e2wm:def-plugin-files-insert-by-size (rows-file rows-time rows-size)
-  (loop for i from 0 below (length rows-file)
+  (cl-loop for i from 0 below (length rows-file)
         with wfile = (e2wm:max-length rows-file)
         with wsize = (e2wm:max-length rows-size)
         with fmt = (format "%%%is  %%-%is  %%s\n" wsize wfile)
@@ -2806,7 +2807,7 @@ string object to insert the imenu buffer."
        (e2wm:pst-buffer-set win-name (window-buffer window))))
     ;; remove the buffer from the history if it is the last buffer in
     ;; the current frame
-    (when (loop for other-win in (window-list)
+    (when (cl-loop for other-win in (window-list)
                 for other-buf = (window-buffer other-win)
                 when (and (eq other-buf buried-buffer)
                           (not (eq other-win window)))
@@ -3363,7 +3364,7 @@ Do not select the buffer."
       (unless (e2wm:history-recordable-p buf) ; ドキュメント的バッファだったら
         (e2wm:dp-doc-set-doc-buffer buf)      ; あとで再表示できるようにして、
         (setq e2wm:prev-selected-buffer nil))))   ; 次のパースペクティブは履歴から持ってきてもらう
-  (loop for b in (buffer-list)
+  (cl-loop for b in (buffer-list)
         do (with-current-buffer b
              (when follow-mode
                (follow-mode -1)))))
@@ -3427,7 +3428,7 @@ Do not select the buffer."
     wm))
 
 (defun e2wm:dp-dashboard-arrange-plugins (wm)
-  (loop for winfo in (wlf:wset-winfo-list wm)
+  (cl-loop for winfo in (wlf:wset-winfo-list wm)
         with cnt = 0
         for opt = (wlf:window-options winfo)
         for plugin = (nth cnt e2wm:c-dashboard-plugins)
@@ -3442,7 +3443,7 @@ Do not select the buffer."
           (nconc opt (cdr plugin)))
          (t
           (plist-put opt ':buffer (e2wm:get-blank-buffer))))
-        (incf cnt))
+        (cl-incf cnt))
   wm)
 
 (defun e2wm:dp-dashboard-start (wm)
@@ -3470,7 +3471,7 @@ Do not select the buffer."
     (wlf:set-buffer wm 'summary buf)))
 
 (defun e2wm:dp-dashboard-parse-garbage-collect-1 (gc-info)
-  (multiple-value-bind
+  (cl-multiple-value-bind
       (conses syms miscs used-string-chars
               used-vector-slots floats intervals strings)
       gc-info
@@ -3499,7 +3500,7 @@ Do not select the buffer."
   ;; For the following Emacs in Ubuntu 12.04
   ;; GNU Emacs 24.3.1 (i686-pc-linux-gnu, GTK+ Version 3.4.2)
   ;; of 2014-02-22 on chindi10, modified by Debian
-  (multiple-value-bind
+  (cl-multiple-value-bind
       (conses syms miscs strings string-bytes
               vectors vector-slots floats intervals)
       gc-info
@@ -3527,16 +3528,16 @@ Do not select the buffer."
             used-vector-slots))))
 
 (defun e2wm:dp-dashboard-parse-garbage-collect ()
-  (loop with gc-info = (garbage-collect)
+  (cl-loop with gc-info = (garbage-collect)
         for f in '(e2wm:dp-dashboard-parse-garbage-collect-1
                    e2wm:dp-dashboard-parse-garbage-collect-2)
         for ret = (funcall f gc-info)
-        if (loop for e in ret always (numberp e))
+        if (cl-loop for e in ret always (numberp e))
         return ret
         finally return '(0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
 
 (defun e2wm:dp-dashboard-insert-summary-info ()
-  (multiple-value-bind
+  (cl-multiple-value-bind
       ( used-conses    free-conses
         used-miscs     free-miscs
         used-syms      free-syms
@@ -3550,7 +3551,7 @@ Do not select the buffer."
            (pure-mem (e2wm:format-byte-unit pure-bytes-used))
            (gccons (e2wm:format-byte-unit gc-cons-threshold))
            (mem-limit (e2wm:format-byte-unit (* 1024 (memory-limit)))))
-      (flet
+      (cl-flet
           ((percent (used free)
                     (let ((u (* 1.0 used)))
                       (format "%.2f" (* 100.0 (/ u (+ u free)))))))
@@ -3606,11 +3607,11 @@ Do not select the buffer."
 (defun e2wm:dp-array-make-recipe (cols rows)
   ;; cols x rows の recipe を作る
   (let ((sz-array (- 1.0 e2wm:c-array-summary-size-ratio)))
-    (decf cols) (decf rows)
-    (labels
+    (cl-decf cols) (cl-decf rows)
+    (cl-labels
         ((loop-rows
           (cols rows)
-          (loop for i from rows downto 1
+          (cl-loop for i from rows downto 1
                 with ret = nil
                 if (< i rows)
                 do (setq ret
@@ -3625,7 +3626,7 @@ Do not select the buffer."
                 finally return ret))
          (loop-cols
           (cols y)
-          (loop for i from cols downto 1
+          (cl-loop for i from cols downto 1
                 with ret = nil
                 if (< i cols)
                 do (setq ret (list
@@ -3647,14 +3648,14 @@ Do not select the buffer."
 
 (defun e2wm:dp-array-make-winfo (cols rows)
   ;; cols x rows の winfo を作る
-  (labels
+  (cl-labels
       ((loop-rows (cols rows)
-                  (loop for i from 1 to rows
+                  (cl-loop for i from 1 to rows
                         with ret = nil
                         do (setq ret (nconc ret (loop-cols cols i)))
                         finally return ret))
        (loop-cols (cols y)
-                  (loop for i from 1 to cols
+                  (cl-loop for i from 1 to cols
                         with ret = nil
                         do (setq ret (nconc ret (list (mk i y))))
                         finally return ret))
@@ -3665,15 +3666,15 @@ Do not select the buffer."
 (defun e2wm:dp-array-calculate-size (num)
   ;;num個のサイズが入る縦横幅を計算する
   ;;なるべく縦横の数が離れすぎないような数を探す
-  (labels
+  (cl-labels
       ((loop-rows (cols rows)
-                  (loop for i from 1 to rows
+                  (cl-loop for i from 1 to rows
                         for ret = (loop-cols i i cols)
                         if ret
                         return ret
                         finally return (cons cols rows)))
        (loop-cols (cols y mx)
-                  (loop for i from y to (min (1+ y) mx)
+                  (cl-loop for i from y to (min (1+ y) mx)
                         if (<= num (* i y))
                         return (cons i y)
                         finally return nil)))
@@ -3732,14 +3733,14 @@ Do not select the buffer."
   (e2wm:dp-array-increase-fontsize))
 
 (defun e2wm:dp-array-arrange-buffers (wm buffers)
-  (loop for winfo in (wlf:wset-winfo-list wm)
+  (cl-loop for winfo in (wlf:wset-winfo-list wm)
         with cnt = 0
         for opt = (wlf:window-options winfo)
         do (plist-put
             opt ':buffer
             (e2wm:aif (nth cnt buffers)
                 it (e2wm:get-blank-buffer)))
-        (incf cnt))
+        (cl-incf cnt))
   wm)
 
 (defun e2wm:dp-array-get-recordable-buffers ()
@@ -3747,9 +3748,9 @@ Do not select the buffer."
   (let ((ret
          (append
           (reverse (e2wm:history-get))
-          (copy-list (e2wm:history-get-backup))
+          (cl-copy-list (e2wm:history-get-backup))
           )))
-    (loop for b in (buffer-list)
+    (cl-loop for b in (buffer-list)
           if (and (e2wm:history-recordable-p b)
                   (not (member b ret)))
           do (push b ret))
@@ -3760,22 +3761,22 @@ Do not select the buffer."
   (let ((ret
          (append
           (reverse (e2wm:history-get))
-          (copy-list (e2wm:history-get-backup))
+          (cl-copy-list (e2wm:history-get-backup))
           )))
-    (loop for b in (buffer-list)
+    (cl-loop for b in (buffer-list)
           if (and (funcall e2wm:c-array-more-buffers-pred b)
                   (not (member b ret)))
           do (push b ret))
     (nreverse ret)))
 
 (defun e2wm:dp-array-get-smart-buffers ()
-  (loop for f in e2wm:c-array-smart-buffers-functions
+  (cl-loop for f in e2wm:c-array-smart-buffers-functions
         for ret = (funcall f)
         if ret return ret
         finally return (e2wm:dp-array-get-recordable-buffers)))
 
 (defun e2wm:dp-array-get-same-mode-buffers ()
-  (loop with mmode = (buffer-local-value 'major-mode (current-buffer))
+  (cl-loop with mmode = (buffer-local-value 'major-mode (current-buffer))
         for b in (buffer-list)
         if (eq (buffer-local-value 'major-mode b) mmode)
         collect b))
@@ -3793,14 +3794,14 @@ Do not select the buffer."
 
 (defun e2wm:dp-array-decrease-fontsize ()
   (when (fboundp 'text-scale-decrease)
-    (loop for b in (buffer-list)
+    (cl-loop for b in (buffer-list)
           if (not (minibufferp b))
           do (with-current-buffer b
                (text-scale-decrease e2wm:c-array-font-decrease)))))
 
 (defun e2wm:dp-array-increase-fontsize ()
   (when (fboundp 'text-scale-increase)
-    (loop for b in (buffer-list)
+    (cl-loop for b in (buffer-list)
           if (not (minibufferp b))
           do (with-current-buffer b
                (text-scale-increase e2wm:c-array-font-decrease)))))
@@ -3966,7 +3967,7 @@ Do not select the buffer."
 (defun e2wm:history-add-loaded-buffers ()
   "Put all recordable buffers in the history list."
   (interactive)
-  (loop for b in (buffer-list)
+  (cl-loop for b in (buffer-list)
         for bo = (get-buffer b)
         if (e2wm:history-recordable-p bo)
         do (e2wm:history-add bo)))

@@ -162,6 +162,8 @@
 
 (eval-when-compile (defvar prev-selected-buffer))
 
+(declare-function hl-line-highlight "hl-line")
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; ### Customize

@@ -410,6 +410,8 @@
      (add-hook 'e2wm:post-stop-hook 'e2wm:elscreen-revert)
      ))
 
+(declare-function e2wm:elscreen-define-advice "elscreen" t t)
+
 ;;; For Multi Term
 
 ;; Multi Term は「dedicated」なウインドウを消さないような、簡易ウインド

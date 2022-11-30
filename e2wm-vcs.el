@@ -86,12 +86,12 @@
   (e2wm:message "#vcs-select-if-plugin")
   (if e2wm:c-vcs-select-if-plugin
       (cl-loop with wm = (e2wm:pst-get-wm)
-            for wname in (mapcar 'wlf:window-name (wlf:wset-winfo-list wm))
-            if (and (equal buf (wlf:get-buffer wm wname))
-                    (e2wm:pst-window-plugin-get wm wname))
-            return (progn (wlf:select wm wname)
-                          (e2wm:message "#vcs-select-if-plugin wname: %s" wname)
-                          t))))
+               for wname in (mapcar 'wlf:window-name (wlf:wset-winfo-list wm))
+               if (and (equal buf (wlf:get-buffer wm wname))
+                       (e2wm:pst-window-plugin-get wm wname))
+               return (progn (wlf:select wm wname)
+                             (e2wm:message "#vcs-select-if-plugin wname: %s" wname)
+                             t))))
 
 
 ;;; magit / plugins

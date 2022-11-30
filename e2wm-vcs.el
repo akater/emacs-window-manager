@@ -114,7 +114,7 @@
   (e2wm:def-plugin-vcs-with-window
    'magit-toplevel
    (lambda (_dir _topdir)
-     (magit-log (magit-log-read-revs t) '("--graph" "--color" "--decorate" "-n100")))
+     (magit-log-current (magit-log-read-revs t) '("--graph" "--color" "--decorate" "-n100")))
    (lambda () (e2wm:def-plugin-vcs-na-buffer "Git N/A"))
    wm winfo))
 
@@ -126,7 +126,7 @@
   (e2wm:def-plugin-vcs-with-window
    'magit-toplevel
    (lambda (_dir topdir)
-     (magit-status topdir))
+     (magit-status-setup-buffer topdir))
    (lambda () (e2wm:history-get-main-buffer))
    wm winfo))
 
